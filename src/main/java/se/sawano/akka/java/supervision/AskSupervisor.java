@@ -18,6 +18,7 @@ package se.sawano.akka.java.supervision;
 
 import akka.actor.*;
 import akka.japi.Function;
+import akka.util.Timeout;
 import scala.concurrent.duration.Duration;
 
 import java.util.concurrent.TimeoutException;
@@ -31,7 +32,7 @@ class AskSupervisor extends UntypedActor {
 
     private ActorRef targetActor;
     private ActorRef caller;
-    private AskParam askParam;
+    private Timeout timeout;
     private Cancellable timeoutMessage;
 
     @Override
@@ -47,7 +48,8 @@ class AskSupervisor extends UntypedActor {
     @Override
     public void onReceive(final Object message) throws Exception {
         if (message instanceof AskParam) {
-            askParam = (AskParam) message;
+            AskParam askParam = (AskParam) message;
+            timeout = askParam.timeout;
             caller = sender();
             targetActor = context().actorOf(askParam.props);
             context().watch(targetActor);
@@ -61,7 +63,7 @@ class AskSupervisor extends UntypedActor {
             context().stop(self());
         }
         else if (message instanceof AskTimeout) {
-            sendFailureToCaller(new TimeoutException("Target actor timed out after " + askParam.timeout.toString()));
+            sendFailureToCaller(new TimeoutException("Target actor timed out after " + timeout.toString()));
             context().stop(self());
         }
         else {
